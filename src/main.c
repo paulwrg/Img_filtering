@@ -7,11 +7,15 @@
 #include <stdlib.h>
 #include <math.h>
 #include <sys/time.h>
-
+#include <time.h>
+#include <string.h>
+#include <sys/stat.h>
 #include "gif_lib.h"
 
 /* Set this macro to 1 to enable debugging information */
 #define SOBELF_DEBUG 0
+#define WRITE_TO_FILE 1
+#define filedebug 0
 
 /* Represent one pixel from the image */
 typedef struct pixel
@@ -857,6 +861,7 @@ main( int argc, char ** argv )
     struct timeval t1, t2;
     double duration ;
 
+
     /* Check command-line arguments */
     if ( argc < 3 )
     {
@@ -870,6 +875,44 @@ main( int argc, char ** argv )
     /* IMPORT Timer start */
     gettimeofday(&t1, NULL);
 
+#if WRITE_TO_FILE
+    // Get current time
+    time_t now;
+    struct tm ts;
+    char buf[80];
+    int i;
+    time(&now);
+    ts = *localtime(&now);
+    strftime(buf, sizeof(buf), "%a_%Y-%m-%d_%H_%M", &ts);
+    char filename[100], tmp[1000], tmp1[50], tmp2[20], folder[100];
+    sscanf(input_filename, "images/original/%s.%s", tmp1, tmp2);
+    sprintf(filename, "%s/%s/%s", "result", buf, tmp1);
+    for(i = 0; i < strlen(filename); i++){
+        if(filename[i] == '.')
+            memcpy(filename+i, ".txt", 4);
+    }
+    sprintf(folder, "%s", "result");
+    mkdir(folder, 0755);
+    sprintf(folder, "%s/%s", "result", buf);
+    mkdir(folder, 0755);
+    printf("%s\n", filename);
+#endif
+
+#if WRITE_TO_FILE
+    FILE *fptr;
+    fptr = fopen(filename, "w");
+    strcpy(tmp, "Load_time\tGRAY\tBLUR\tSOBEL\tExport_time\n");
+#endif
+
+#if filedebug
+    FILE *fptr;
+    fptr = fopen(filename, "w");
+    // memset(tmp, '\0', sizeof(tmp));
+    // strcpy(tmp, "Load_time\tGRAY\tBLUR\tSOBEL\tExport_time\n");
+    fwrite(filename, 1, 10, fptr);
+    fclose(fptr);
+#endif
+
     /* Load file and store the pixels in array */
     image = load_pixels( input_filename ) ;
     if ( image == NULL ) { return 1 ; }
@@ -878,6 +921,12 @@ main( int argc, char ** argv )
     gettimeofday(&t2, NULL);
 
     duration = (t2.tv_sec -t1.tv_sec)+((t2.tv_usec-t1.tv_usec)/1e6);
+
+#if WRITE_TO_FILE
+    sprintf(tmp1, "%f", duration);
+    strcat(tmp, tmp1);
+    strcat(tmp, "\t");
+#endif
 
     printf( "GIF loaded from file %s with %d image(s) in %lf s\n", 
             input_filename, image->n_images, duration ) ;
@@ -888,8 +937,40 @@ main( int argc, char ** argv )
     /* Convert the pixels into grayscale */
     apply_gray_filter( image ) ;
 
+    /* IMPORT Timer stop */
+    gettimeofday(&t2, NULL);
+
+    duration = (t2.tv_sec -t1.tv_sec)+((t2.tv_usec-t1.tv_usec)/1e6);
+
+#if WRITE_TO_FILE
+    sprintf(tmp1, "%f", duration);
+    strcat(tmp, tmp1);
+    strcat(tmp, "\t");
+#endif
+
+    printf( "GRAY done in %lf s\n", duration ) ;
+
+    /* FILTER Timer start */
+    gettimeofday(&t1, NULL);
+
     /* Apply blur filter with convergence value */
     apply_blur_filter( image, 5, 20 ) ;
+
+    /* IMPORT Timer stop */
+    gettimeofday(&t2, NULL);
+
+    duration = (t2.tv_sec -t1.tv_sec)+((t2.tv_usec-t1.tv_usec)/1e6);
+
+#if WRITE_TO_FILE
+    sprintf(tmp1, "%f", duration);
+    strcat(tmp, tmp1);
+    strcat(tmp, "\t");
+#endif
+
+    printf( "BLUR done in %lf s\n", duration ) ;
+
+    /* FILTER Timer start */
+    gettimeofday(&t1, NULL);
 
     /* Apply sobel filter on pixels */
     apply_sobel_filter( image ) ;
@@ -898,6 +979,12 @@ main( int argc, char ** argv )
     gettimeofday(&t2, NULL);
 
     duration = (t2.tv_sec -t1.tv_sec)+((t2.tv_usec-t1.tv_usec)/1e6);
+
+#if WRITE_TO_FILE
+    sprintf(tmp1, "%f", duration);
+    strcat(tmp, tmp1);
+    strcat(tmp, "\t");
+#endif
 
     printf( "SOBEL done in %lf s\n", duration ) ;
 
@@ -912,7 +999,19 @@ main( int argc, char ** argv )
 
     duration = (t2.tv_sec -t1.tv_sec)+((t2.tv_usec-t1.tv_usec)/1e6);
 
+#if WRITE_TO_FILE
+    sprintf(tmp1, "%f", duration);
+    strcat(tmp, tmp1);
+    strcat(tmp, "\t");
+    strcat(tmp, "\0");
+#endif
+
     printf( "Export done in %lf s in file %s\n", duration, output_filename ) ;
+
+#if WRITE_TO_FILE
+    fwrite(tmp, 1, strlen(tmp), fptr);
+    fclose(fptr);
+#endif
 
     return 0 ;
 }
