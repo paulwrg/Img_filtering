@@ -834,7 +834,7 @@ int slave_main(int argc, char* argv[]) {
 
     animated_gif image;
 
-    /* First, we broadcast metadata */
+    /* broadcast metadata */
     MPI_Bcast(&image.n_images, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
     image.width = calloc(image.n_images, sizeof(int));
@@ -844,21 +844,25 @@ int slave_main(int argc, char* argv[]) {
     MPI_Bcast(image.width, image.n_images, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(image.height, image.n_images, MPI_INT, 0, MPI_COMM_WORLD);
 
-    const int kSignalTag = image.n_images;
+    /* ask master for a new task */
+    const int schedulingCommTag = image.n_images; // tag used for scheduling communications only
     int image_index = -1;
-    MPI_Send(&image_index, 1, MPI_INT, 0, kSignalTag, MPI_COMM_WORLD);
+    MPI_Send(&image_index, 1, MPI_INT, 0, schedulingCommTag, MPI_COMM_WORLD);
 
+    /* create array of all possible communication requests with master */
     MPI_Request processed_image_requests[image.n_images];
     for (int i = 0; i < image.n_images; ++i) {
         processed_image_requests[i] = MPI_REQUEST_NULL;
     }
 
     while (true) {
-        MPI_Recv(&image_index, 1, MPI_INT, 0, kSignalTag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        /* check if there is another image to receive */
+        MPI_Recv(&image_index, 1, MPI_INT, 0, schedulingCommTag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         if (image_index == -1) {
             break;
         }
 
+        /* Receive the image from master */
         image.p[image_index] = calloc(image.width[image_index] * image.height[image_index], sizeof(pixel));
         MPI_Recv(image.p[image_index], image.width[image_index] * image.height[image_index], kMPIPixelDatatype, 0,
                  image_index, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
@@ -872,15 +876,17 @@ int slave_main(int argc, char* argv[]) {
         /* Apply sobel filter on pixels */
         apply_sobel_filter(&image, image_index);
 
-
+        /* ask master for new task */
         MPI_Request req;
-        MPI_Isend(&image_index, 1, MPI_INT, 0, kSignalTag, MPI_COMM_WORLD, &req);
+        MPI_Isend(&image_index, 1, MPI_INT, 0, schedulingCommTag, MPI_COMM_WORLD, &req);
         MPI_Request_free(&req);
 
+        /* send processed image back to master */
         MPI_Isend(image.p[image_index], image.width[image_index] * image.height[image_index], kMPIPixelDatatype, 0,
                   image_index, MPI_COMM_WORLD, processed_image_requests + image_index);
     }
 
+    /* check that all images have been safely sent to master process (requests resolved) */
     for (int i = 0; i < image.n_images; ++i) {
         if (processed_image_requests[i] != MPI_REQUEST_NULL) {
             MPI_Wait(processed_image_requests + i, MPI_STATUS_IGNORE);
@@ -900,59 +906,65 @@ void do_master_work(animated_gif* image) {
     int mpi_world_size;
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_world_size);
-    const int kSignalTag = image->n_images;
+    const int schedulingCommTag = image->n_images; // tag used for scheduling communications only
 
-    /* First, we broadcast metadata */
+    /* broadcast metadata */
     MPI_Bcast(&image->n_images, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(image->width, image->n_images, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(image->height, image->n_images, MPI_INT, 0, MPI_COMM_WORLD);
 
-    /* Start scheduling */
-    MPI_Request table_of_requests[mpi_world_size];
+    /* start scheduling */
+    MPI_Request table_of_requests[mpi_world_size]; // communication requests with slaves
     int slave_signals[mpi_world_size];
-    table_of_requests[0] = MPI_REQUEST_NULL;
+    table_of_requests[0] = MPI_REQUEST_NULL; // no communication between master and self
 
+    int n_processed_images = 0;
+    int n_sent_images = 0;
+    /* initialize communication request for each image in gif */
     MPI_Request processed_image_requests[image->n_images];
-    int processed_images = 0;
-    int sent_images = 0;
     for (int i = 0; i < image->n_images; ++i) {
         processed_image_requests[i] = MPI_REQUEST_NULL;
     }
 
-    for (int i = 1; i < mpi_world_size; ++i) {
-        MPI_Irecv(slave_signals + i, 1, MPI_INT, i, -1, MPI_COMM_WORLD, table_of_requests + i);
+    /* initialize communication with slaves */
+    for (int slave_rank = 1; slave_rank < mpi_world_size; ++slave_rank) {
+        MPI_Irecv(slave_signals + slave_rank, 1, MPI_INT, slave_rank, schedulingCommTag, MPI_COMM_WORLD, table_of_requests + slave_rank);
     }
 
-    while (processed_images < image->n_images) {
-        int indx;
-        MPI_Waitany(mpi_world_size, table_of_requests, &indx, MPI_STATUS_IGNORE);
+    while (n_processed_images < image->n_images) {
+        /* Wait until one request is completed */
+        int slave_rank;
+        MPI_Waitany(mpi_world_size, table_of_requests, &slave_rank, MPI_STATUS_IGNORE);
 
-        int image_index = slave_signals[indx];
+        int image_index = slave_signals[slave_rank];
         if (image_index != -1) {
             MPI_Irecv(image->p[image_index], image->width[image_index] * image->height[image_index],
-                      kMPIPixelDatatype, indx, image_index, MPI_COMM_WORLD, &processed_image_requests[image_index]);
-            ++processed_images;
+                      kMPIPixelDatatype, slave_rank, image_index, MPI_COMM_WORLD, &processed_image_requests[image_index]);
+            ++n_processed_images;
         }
 
-        if (sent_images == image->n_images) {
+        if (n_sent_images == image->n_images) {
+            /* tell slave there is no work left to do, that it should exit while loop */
             MPI_Request req;
             int next_image_index = -1;
-            MPI_Isend(&next_image_index, 1, MPI_INT, indx, kSignalTag, MPI_COMM_WORLD, &req);
+            MPI_Isend(&next_image_index, 1, MPI_INT, slave_rank, schedulingCommTag, MPI_COMM_WORLD, &req);
             MPI_Request_free(&req);
         } else {
+            /* send next image to slave that just finished its work */
             MPI_Request req;
-            int next_image_index = sent_images++;
-            MPI_Isend(&next_image_index, 1, MPI_INT, indx, kSignalTag, MPI_COMM_WORLD, &req);
+            int next_image_index = n_sent_images++;
+            MPI_Isend(&next_image_index, 1, MPI_INT, slave_rank, schedulingCommTag, MPI_COMM_WORLD, &req);
             MPI_Request_free(&req);
             MPI_Isend(image->p[next_image_index], image->width[next_image_index] * image->height[next_image_index],
-                      kMPIPixelDatatype, indx, next_image_index, MPI_COMM_WORLD, &req);
-            MPI_Request_free(&req);
+                      kMPIPixelDatatype, slave_rank, next_image_index, MPI_COMM_WORLD, &req);
+            MPI_Request_free(&req); // safe because only time we write here is when slave sends result
 
-            MPI_Irecv(slave_signals + indx, 1, MPI_INT, indx, kSignalTag, MPI_COMM_WORLD, table_of_requests + indx);
+            /* wait for slave to confirm that work is done on this image */
+            MPI_Irecv(slave_signals + slave_rank, 1, MPI_INT, slave_rank, schedulingCommTag, MPI_COMM_WORLD, table_of_requests + slave_rank);
         }
     }
 
-    /* Finally, we wait for all images */
+    /* wait until all images have been correctly received */
     for (int i = 0; i < image->n_images; ++i) {
         if (processed_image_requests[i] != MPI_REQUEST_NULL) {
             MPI_Wait(processed_image_requests + i, MPI_STATUS_IGNORE);
@@ -1017,7 +1029,7 @@ int master_main(int argc, char* argv[]) {
     return 0;
 }
 
-int old_main(int argc, char* argv[]) {
+int sequential_main(int argc, char* argv[]) {
     char* input_filename;
     char* output_filename;
     animated_gif* image;
@@ -1091,7 +1103,7 @@ int main(int argc, char *argv[]) {
     int ret_code;
 
     if (mpi_world_size == 1) {
-        ret_code = old_main(argc, argv);
+        ret_code = sequential_main(argc, argv);
     } else if (mpi_rank == 0) {
         ret_code = master_main(argc, argv);
     } else {
