@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <mpi.h>
+#include "gif_lib.h"
 
 #define WORK_MODE_FAILURE  (0)
 #define WORK_MODE_LEGACY   (1)
