@@ -25,3 +25,6 @@ typedef struct animated_gif
 
 
 extern void prepare_pixel_datatype(MPI_Datatype* datatype);
+animated_gif* load_pixels(char* filename);
+int output_modified_read_gif(char* filename, GifFileType* g);
+int store_pixels(char* filename, animated_gif* image);
