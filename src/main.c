@@ -827,10 +827,10 @@ void apply_all_filters(animated_gif* image) {
  */
 
 int slave_main(int argc, char* argv[]) {
-    int rank;
-    int world_size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+    int mpi_rank;
+    int mpi_world_size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &mpi_world_size);
 
     animated_gif image;
 
@@ -896,10 +896,10 @@ int slave_main(int argc, char* argv[]) {
 }
 
 void do_master_work(animated_gif* image) {
-    int rank;
-    int world_size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+    int mpi_rank;
+    int mpi_world_size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &mpi_world_size);
     const int kSignalTag = image->n_images;
 
     /* First, we broadcast metadata */
@@ -908,8 +908,8 @@ void do_master_work(animated_gif* image) {
     MPI_Bcast(image->height, image->n_images, MPI_INT, 0, MPI_COMM_WORLD);
 
     /* Start scheduling */
-    MPI_Request table_of_requests[world_size];
-    int slave_signals[world_size];
+    MPI_Request table_of_requests[mpi_world_size];
+    int slave_signals[mpi_world_size];
     table_of_requests[0] = MPI_REQUEST_NULL;
 
     MPI_Request processed_image_requests[image->n_images];
@@ -919,13 +919,13 @@ void do_master_work(animated_gif* image) {
         processed_image_requests[i] = MPI_REQUEST_NULL;
     }
 
-    for (int i = 1; i < world_size; ++i) {
+    for (int i = 1; i < mpi_world_size; ++i) {
         MPI_Irecv(slave_signals + i, 1, MPI_INT, i, -1, MPI_COMM_WORLD, table_of_requests + i);
     }
 
     while (processed_images < image->n_images) {
         int indx;
-        MPI_Waitany(world_size, table_of_requests, &indx, MPI_STATUS_IGNORE);
+        MPI_Waitany(mpi_world_size, table_of_requests, &indx, MPI_STATUS_IGNORE);
 
         int image_index = slave_signals[indx];
         if (image_index != -1) {
@@ -1082,17 +1082,17 @@ int main(int argc, char *argv[]) {
 
     prepare_pixel_datatype(&kMPIPixelDatatype);
 
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    int mpi_rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
 
-    int world_size;
-    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+    int mpi_world_size;
+    MPI_Comm_size(MPI_COMM_WORLD, &mpi_world_size);
 
     int ret_code;
 
-    if (world_size == 1) {
+    if (mpi_world_size == 1) {
         ret_code = old_main(argc, argv);
-    } else if (rank == 0) {
+    } else if (mpi_rank == 0) {
         ret_code = master_main(argc, argv);
     } else {
         ret_code = slave_main(argc, argv);
