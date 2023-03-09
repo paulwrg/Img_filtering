@@ -2,10 +2,6 @@
 #include <mpi.h>
 #include "gif_lib.h"
 
-#define WORK_MODE_FAILURE  (0)
-#define WORK_MODE_LEGACY   (1)
-#define WORK_MODE_STRIPING (2)
-
 MPI_Datatype kMPIPixelDatatype;
 
 /* Represent one pixel from the image */
