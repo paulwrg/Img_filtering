@@ -28,7 +28,7 @@ apply_gray_filter( animated_gif * image , int image_index)
 
     p = image->p ;
 
-    #pragma omp parallel for private(j)
+    #pragma omp parallel for private(j) num_threads(8)
     for (j = 0; j < image->width[image_index] * image->height[image_index]; j++) {
         int moy;
         moy = (p[image_index][j].r + p[image_index][j].g + p[image_index][j].b) / 3;
@@ -77,7 +77,7 @@ apply_blur_filter( animated_gif * image, int size, int threshold , int image_ind
         end = 1;
         n_iter++;
 
-        #pragma omp parallel
+        #pragma omp parallel num_threads(16)
         {
             #pragma omp for private(k) collapse(2)
             for (j = 0; j < height - 1; j++) {
@@ -199,7 +199,7 @@ apply_sobel_filter( animated_gif * image , int image_index)
 
     sobel = (pixel*)malloc(width * height * sizeof(pixel));
 
-    #pragma omp parallel
+    #pragma omp parallel num_threads(16)
     {
         #pragma omp for private(k) collapse(2)
         for (j = 1; j < height - 1; j++) {
