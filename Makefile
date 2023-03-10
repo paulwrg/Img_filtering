@@ -5,7 +5,7 @@ OBJ_DIR=obj
 CC=mpicc
 CFLAGS=-O3 -I$(HEADER_DIR) -std=gnu99 
 NVCFLAGS=-O3 -I$(HEADER_DIR) -std=gnu99 
-LDFLAGS=-lm -lmpi
+LDFLAGS=-lm -lmpi -lgomp
 
 SRC= dgif_lib.c \
 	egif_lib.c \
@@ -35,7 +35,7 @@ $(OBJ_DIR):
 	mkdir $(OBJ_DIR)
 
 $(OBJ_DIR)/%.o : $(SRC_DIR)/%.c
-	$(CC) $(CFLAGS) -c -o $@ $^
+	$(CC) $(CFLAGS) -c -fopenmp -o $@ $^
 
 sobelf:$(OBJ)
 	$(CC) $(NVCFLAGS) -o $@ $^ $(LDFLAGS)
