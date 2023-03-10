@@ -2,6 +2,13 @@
 
 make -j8
 
-echo "Running test on images/original/1.gif -> images/processed/1-sobel.gif"
+SRC=images/original/Campusplan-Mobilitaetsbeschraenkte.gif
+OUTPUT_DIR=images/processed
+DEST=$OUTPUT_DIR/`basename $SRC .gif`-sobel.gif
+echo "Running test on $SRC"
 
-mpirun -N 1 -n 1 ./sobelf images/original/1.gif images/processed/1-sobel.gif
+for i in {1..1}
+do
+    echo "-"
+    mpirun -N 1 -n 1 ./sobelf $SRC $DEST
+done
