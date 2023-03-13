@@ -23,6 +23,27 @@ void prepare_pixel_datatype(MPI_Datatype* datatype) {
     MPI_Type_commit(datatype);
 }
 
+int* split_segment(int width, int n_slices)
+{
+    int* slice_edges;
+    int i;
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    printf("attempt from rank %d\n", rank);
+    slice_edges = (int*)malloc((n_slices+1) * sizeof(int));
+
+    for (i = 0; i < width % n_slices; i++)
+    {
+        slice_edges[i] = (i + 1) * (width/n_slices + 1);
+    }
+    for (i = width % n_slices; i < n_slices; i++)
+    {
+        slice_edges[i] = (i + 1) * (width/n_slices) + width % n_slices;
+    }
+    printf("success from rank %d\n", rank);
+    return slice_edges;
+}
+
 /*
  * Load a GIF image from a file and return a
  * structure of type animated_gif.

@@ -16,6 +16,7 @@
 #include "utils.h"
 #include "filters.h"
 #include "mpi_no_splitting.h"
+#include "mpi_with_splitting.h"
 
 /* Set this macro to 1 to enable debugging information */
 #define SOBELF_DEBUG 0
@@ -98,10 +99,15 @@ int main(int argc, char *argv[]) {
     if (mpi_world_size == 1) {
         ret_code = sequential_main(argc, argv);
     } else if (mpi_rank == 0) {
-        ret_code = master_main(argc, argv);
+        ret_code = master_main_with_splitting(argc, argv);
     } else {
-        ret_code = slave_main(argc, argv);
+        ret_code = slave_main_with_splitting(argc, argv);
     }
+    // } else if (mpi_rank == 0) {
+    //     ret_code = master_main(argc, argv);
+    // } else {
+    //     ret_code = slave_main(argc, argv);
+    // }
 
     MPI_Finalize();
     return ret_code;

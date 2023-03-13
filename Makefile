@@ -16,6 +16,7 @@ SRC= dgif_lib.c \
 	utils.c \
 	filters.c \
 	mpi_no_splitting.c \
+	mpi_with_splitting.c \
 	main.c \
 	openbsd-reallocarray.c \
 	quantize.c
@@ -29,6 +30,7 @@ OBJ= $(OBJ_DIR)/dgif_lib.o \
 	$(OBJ_DIR)/utils.o \
 	$(OBJ_DIR)/filters.o \
 	$(OBJ_DIR)/mpi_no_splitting.o \
+	$(OBJ_DIR)/mpi_with_splitting.o \
 	$(OBJ_DIR)/main.o \
 	$(OBJ_DIR)/openbsd-reallocarray.o \
 	$(OBJ_DIR)/quantize.o
