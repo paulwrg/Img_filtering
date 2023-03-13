@@ -8,6 +8,7 @@
 #include <mpi.h>
 #include <stddef.h>
 #include "utils.h"
+#include "utilmpi.h"
 #include "gif_lib.h"
 
 void prepare_pixel_datatype(MPI_Datatype* datatype) {
