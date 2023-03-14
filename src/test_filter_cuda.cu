@@ -192,11 +192,10 @@ void apply_all_filters_gpu(animated_gif *image)
   cudaGetDeviceProperties(&deviceProp, 0);
 
   /**
-     * Allocation on the device once for all the images (if multiple)
      * Memory allocation + dimension of grid
      **/
-  dim3 dimGrid(10*size / deviceProp.maxThreadsPerBlock + 1);
-  dim3 dimBlock(deviceProp.maxThreadsPerBlock/10);
+  dim3 dimGrid(image->n_images*3*size / deviceProp.maxThreadsPerBlock + 1);
+  dim3 dimBlock(deviceProp.maxThreadsPerBlock/64);
 
   pixel *device_image, *device_new;
   cudaMalloc(&device_image, size * sizeof(pixel));
