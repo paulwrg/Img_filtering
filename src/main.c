@@ -19,7 +19,7 @@
 #define SOBELF_DEBUG 0
 #define WRITE_TO_FILE 1
 #define filedebug 0
-#define USE_CUDA 0
+#define USE_CUDA 1
 MPI_Datatype kMPIPixelDatatype;
 
 void

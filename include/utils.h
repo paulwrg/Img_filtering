@@ -20,6 +20,9 @@ typedef struct animated_gif
                          DO NOT MODIFY */
 } animated_gif ;
 
+#define CONV(l, c, nb_c) \
+    ((l)*(nb_c)+(c))
+
 animated_gif* load_pixels(char* filename);
 int output_modified_read_gif(char* filename, GifFileType* g);
 int store_pixels(char* filename, animated_gif* image);
