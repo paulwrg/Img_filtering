@@ -296,19 +296,25 @@ void apply_gray_filter_with_splitting(animated_gif * image, int image_index, int
     }
 }
 
-void apply_blur_filter_with_splitting(animated_gif * image, int size, int threshold, int image_index, int start, int stop)
+void apply_blur_filter_with_splitting(animated_gif * image, int size, int threshold, int image_index, int start, int stop, int* communicating_slaves)
 {
     int i, j, k ;
     int width, height ;
     int endloop = 1 ;
     int n_iter = 0 ;
     int begin, end ;
+    const int descendingCommTag = image->n_images + 2;
+    const int ascendingCommTag = image->n_images + 3;
 
     /* debug */
-    int mpi_rank;
-    int mpi_world_size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &mpi_world_size);
+    int real_mpi_rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &real_mpi_rank);
+    int previous_slave_rank = communicating_slaves[0];
+    int mpi_rank = communicating_slaves[1];
+    int next_slave_rank = communicating_slaves[2];
+    if (real_mpi_rank != mpi_rank) {
+        printf("WARNING WARNING, %d != %d\n", real_mpi_rank, mpi_rank);
+    }
 
     pixel ** p ;
     pixel * new ;
@@ -323,11 +329,53 @@ void apply_blur_filter_with_splitting(animated_gif * image, int size, int thresh
 
     /* Allocate array of new pixels */
     new = (pixel*)malloc(width * height * sizeof(pixel));
+    MPI_Request reqAscDesc[2];
+    MPI_Status status[2];
+    printf("Blur0 from rank %d\n", mpi_rank);
 
     /* Perform at least one blur iteration */
-    // do {
-        // endloop = 1;
-        // n_iter++;
+    do {
+        endloop = 1;
+        n_iter++;
+        // if (previous_slave_rank >= 0) {
+        //     // MPI_Request req;
+        //     // MPI_Isend(p + width * start, width, kMPIPixelDatatype, previous_slave_rank, descendingCommTag, MPI_COMM_WORLD, &req);
+        //     MPI_Send(p + width * start, width, kMPIPixelDatatype, previous_slave_rank, descendingCommTag, MPI_COMM_WORLD);
+        //     // MPI_Request_free(&req);
+        //     printf("Blur1 from rank %d\n", mpi_rank);
+        //     MPI_Irecv(p + width * (start-1), width, kMPIPixelDatatype, previous_slave_rank, ascendingCommTag, MPI_COMM_WORLD, &reqAscDesc[0]);
+        //     printf("Blur2 from rank %d\n", mpi_rank);
+        // }
+        // printf("Blur3 from rank %d\n", mpi_rank);
+        // if (next_slave_rank >= 0) {
+        //     MPI_Request req;
+        //     MPI_Isend(p + width * (stop-1), width, kMPIPixelDatatype, next_slave_rank, ascendingCommTag, MPI_COMM_WORLD, &req);
+        //     MPI_Request_free(&req);
+        //     printf("Blur4 from rank %d\n", mpi_rank);
+        //     MPI_Irecv(p + width * stop, width, kMPIPixelDatatype, next_slave_rank, descendingCommTag, MPI_COMM_WORLD, &reqAscDesc[1]);
+        // }
+        // printf("Blur5 from rank %d\n", mpi_rank);
+        // MPI_Waitall(2, reqAscDesc, status);
+        // printf("Blur6 from rank %d\n", mpi_rank);
+
+        printf("Blur1 from rank %d\n", mpi_rank);
+        if (previous_slave_rank >= 0) {
+            MPI_Send(p[image_index] + width * start, width, kMPIPixelDatatype, previous_slave_rank, descendingCommTag, MPI_COMM_WORLD);
+        }
+        printf("Blur2 from rank %d\n", mpi_rank);
+        if (next_slave_rank >= 0) {
+            printf("Stop %d from height %d, rank %d\n", stop, height, mpi_rank);
+            MPI_Recv(p[image_index] + width * stop, width, kMPIPixelDatatype, next_slave_rank, descendingCommTag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        }
+        printf("Blur3 from rank %d\n", mpi_rank);
+        if (next_slave_rank >= 0) {
+            MPI_Send(p[image_index] + width * (stop-1), width, kMPIPixelDatatype, next_slave_rank, ascendingCommTag, MPI_COMM_WORLD);
+        }
+        printf("Blur4 from rank %d\n", mpi_rank);
+        if (previous_slave_rank >= 0) {
+            MPI_Recv(p[image_index] + width * (start-1), width, kMPIPixelDatatype, previous_slave_rank, ascendingCommTag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        }
+        printf("Blur5 from rank %d\n", mpi_rank);
 
         #pragma omp parallel private(begin) private(end) num_threads(THREAD_NUM)
         {
@@ -459,14 +507,92 @@ void apply_blur_filter_with_splitting(animated_gif * image, int size, int thresh
                 }
             }
         }
-    // } while (threshold > 0 && !endloop);
+        printf("Blur7 from rank %d\n", mpi_rank);
+        
+        if (previous_slave_rank >= 0) {
+            int endloop_below;
+            MPI_Recv(&endloop_below, 1, MPI_INT, previous_slave_rank, ascendingCommTag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            endloop = endloop * endloop_below;
+        }
+        printf("Blur8 from rank %d\n", mpi_rank);
+        if (next_slave_rank >= 0) {
+            MPI_Send(&endloop, 1, MPI_INT, next_slave_rank, ascendingCommTag, MPI_COMM_WORLD);
+            int endloop_above;
+            MPI_Recv(&endloop_above, 1, MPI_INT, next_slave_rank, descendingCommTag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            endloop = endloop * endloop_above;
+        }
+        printf("Blur9 from rank %d\n", mpi_rank);
+        if (previous_slave_rank >= 0) {
+            MPI_Send(&endloop, 1, MPI_INT, previous_slave_rank, descendingCommTag, MPI_COMM_WORLD);
+        }
+        printf("Blur10 from rank %d\n", mpi_rank);
+    } while (threshold > 0 && !endloop);
 
 #if SOBELF_DEBUG
     printf( "BLUR: number of iterations for image %d\n", n_iter ) ;
 #endif
+    /* send one final time for the Sobel filter */
+    // printf("Blur11 from rank %d\n", mpi_rank);
+    // if (previous_slave_rank >= 0) {
+    //     printf("Blur11 from rank %d\n", mpi_rank);
+    //     MPI_Request req;
+    //     MPI_Isend(p[image_index] + width * start, width, kMPIPixelDatatype, previous_slave_rank, descendingCommTag, MPI_COMM_WORLD, &req);
+    //     MPI_Request_free(&req);
+    //     MPI_Irecv(p[image_index] + width * (start-1), width, kMPIPixelDatatype, previous_slave_rank, ascendingCommTag, MPI_COMM_WORLD, &reqAscDesc[0]);
+    // }
+    // printf("Blur12 from rank %d\n", mpi_rank);
+    // if (next_slave_rank >= 0) {
+    //     printf("Blur12 from rank %d\n", mpi_rank);
+    //     MPI_Request req;
+    //     MPI_Isend(p[image_index] + width * (stop-1), width, kMPIPixelDatatype, next_slave_rank, ascendingCommTag, MPI_COMM_WORLD, &req);
+    //     MPI_Request_free(&req);
+    //     MPI_Irecv(p[image_index] + width * stop, width, kMPIPixelDatatype, next_slave_rank, descendingCommTag, MPI_COMM_WORLD, &reqAscDesc[1]);
+    // }
+    // printf("Blur13 from rank %d\n", mpi_rank);
+    // MPI_Waitall(2, reqAscDesc, status);
+
+
+
+    // printf("Blur11 from rank %d\n", mpi_rank);
+    // if (previous_slave_rank >= 0) {
+    //     printf("Blur11 from rank %d\n", mpi_rank);
+    //     MPI_Request req;
+    //     MPI_Isend(p[image_index] + width * start, width, kMPIPixelDatatype, previous_slave_rank, descendingCommTag, MPI_COMM_WORLD, &req);
+    //     MPI_Request_free(&req);
+    //     MPI_Irecv(p[image_index] + width * (start-1), width, kMPIPixelDatatype, previous_slave_rank, ascendingCommTag, MPI_COMM_WORLD, &reqAscDesc[0]);
+    // }
+    // printf("Blur12 from rank %d\n", mpi_rank);
+    // if (next_slave_rank >= 0) {
+    //     printf("Blur12 from rank %d\n", mpi_rank);
+    //     MPI_Request req;
+    //     MPI_Isend(p[image_index] + width * (stop-1), width, kMPIPixelDatatype, next_slave_rank, ascendingCommTag, MPI_COMM_WORLD, &req);
+    //     MPI_Request_free(&req);
+    //     MPI_Irecv(p[image_index] + width * stop, width, kMPIPixelDatatype, next_slave_rank, descendingCommTag, MPI_COMM_WORLD, &reqAscDesc[1]);
+    // }
+    // printf("Blur13 from rank %d\n", mpi_rank);
+    // MPI_Waitall(2, reqAscDesc, status);
+
+
+    printf("Blur11 from rank %d\n", mpi_rank);
+    if (previous_slave_rank >= 0) {
+        MPI_Send(p[image_index] + width * start, width, kMPIPixelDatatype, previous_slave_rank, descendingCommTag, MPI_COMM_WORLD);
+    }
+    printf("Blur12 from rank %d\n", mpi_rank);
+    if (next_slave_rank >= 0) {
+        printf("Stop %d from height %d, rank %d\n", stop, height, mpi_rank);
+        MPI_Recv(p[image_index] + width * stop, width, kMPIPixelDatatype, next_slave_rank, descendingCommTag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    }
+    printf("Blur13 from rank %d\n", mpi_rank);
+    if (next_slave_rank >= 0) {
+        MPI_Send(p[image_index] + width * (stop-1), width, kMPIPixelDatatype, next_slave_rank, ascendingCommTag, MPI_COMM_WORLD);
+    }
+    printf("Blur14 from rank %d\n", mpi_rank);
+    if (previous_slave_rank >= 0) {
+        MPI_Recv(p[image_index] + width * (start-1), width, kMPIPixelDatatype, previous_slave_rank, ascendingCommTag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    }
+    printf("Blur15 from rank %d\n", mpi_rank);
 
     free(new);
-    return endloop;
 }
 
 void apply_sobel_filter_with_splitting(animated_gif * image, int image_index, int start, int stop)

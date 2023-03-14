@@ -38,8 +38,11 @@ int slave_main_with_splitting(int argc, char* argv[]) {
 
     /* ask master for a new task */
     const int schedulingCommTag = image.n_images; // tag used for scheduling communications only
+    const int slaveCommTag = image.n_images + 1; // tag used to organize communication between slaves
+    int previous_slice_slave;
+    int next_slice_slave;
     int image_coordinates[3];
-    int image_index, start, stop, start_reception, stop_reception;
+    int image_index, start, stop;
     image_coordinates[0] = -1;
     image_coordinates[1] = -1;
     image_coordinates[2] = -1;
@@ -61,30 +64,39 @@ int slave_main_with_splitting(int argc, char* argv[]) {
         if (image_index == -1) {
             break;
         }
+        previous_slice_slave = -1;
+        next_slice_slave = -1;
+        if (start > 0) {
+            MPI_Recv(&previous_slice_slave, 1, MPI_INT, 0, slaveCommTag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        }
         printf("TR from rank %d\n", mpi_rank);
         printf("Coords %d, %d, %d, rank %d\n", image_index, start, stop, mpi_rank);
 
         /* Receive the image from master */
         // TODO only receive slice of image that we want
-        start_reception = start > 0 ? start - 1 : 0;
-        stop_reception = stop < image.height[image_index] ? stop + 1 : image.height[image_index];
         image.p[image_index] = calloc(image.width[image_index] * image.height[image_index], sizeof(pixel));
 
-        MPI_Recv(image.p[image_index] + image.width[image_index] * start_reception,
-                image.width[image_index] * (stop_reception - start_reception),
+        MPI_Recv(image.p[image_index] + image.width[image_index] * start,
+                image.width[image_index] * (stop - start),
                 kMPIPixelDatatype, 0,
                 image_index, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         printf("TR2 from rank %d\n", mpi_rank);
 
+        if (stop < image.height[image_index]) {
+            MPI_Recv(&next_slice_slave, 1, MPI_INT, 0, slaveCommTag, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        }
+
         /* Convert the pixels into grayscale */
-        apply_gray_filter_with_splitting(&image, image_index, start, stop);
+        // apply_gray_filter_with_splitting(&image, image_index, start, stop);
         printf("TR3 from rank %d\n", mpi_rank);
         /* Apply blur filter with convergence value */
-        apply_blur_filter_with_splitting(&image, 5, 20, image_index, start, stop);
-        printf("TR4 from rank %d\n", mpi_rank);
-        /* Apply sobel filter on pixels */
-        apply_sobel_filter_with_splitting(&image, image_index, start, stop);
-        printf("TR5 from rank %d\n", mpi_rank);
+        /* WARNING: this function contains MPI communications */
+        int communicating_slaves[3] = {previous_slice_slave, mpi_rank, next_slice_slave};
+        // apply_blur_filter_with_splitting(&image, 5, 20, image_index, start, stop, communicating_slaves);
+        // printf("TR4 from rank %d\n", mpi_rank);
+        // /* Apply sobel filter on pixels */
+        // apply_sobel_filter_with_splitting(&image, image_index, start, stop);
+        // printf("TR5 from rank %d\n", mpi_rank);
 
         /* ask master for new task */
         MPI_Request req;
@@ -123,7 +135,7 @@ void do_master_work_with_splitting(animated_gif* image, int n_slices) {
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_world_size);
     const int schedulingCommTag = image->n_images; // tag used for scheduling communications only
-    const int slicingCommTag = image->n_images + 1; // tag used for communicating slice indices to slaves
+    const int slaveCommTag = image->n_images + 1; // tag used to organize communication between slaves
 
     printf("1 from rank %d\n", mpi_rank);
     /* broadcast metadata */
@@ -141,6 +153,7 @@ void do_master_work_with_splitting(animated_gif* image, int n_slices) {
     int n_sent_images = 0;
     int image_coordinates[3];
     int slice_number = 0;
+    int slave_previous_slice;
     // int slice_edges[n_slices + 1];
     int* slice_edges;
     slice_edges = split_segment(image->height[0], n_slices);
@@ -148,8 +161,12 @@ void do_master_work_with_splitting(animated_gif* image, int n_slices) {
     printf("3 from rank %d\n", mpi_rank);
 
     /* initialize communication request for each image in gif */
-    MPI_Request processed_image_requests[image->n_images];
-    for (int i = 0; i < image->n_images; ++i) {
+    // MPI_Request processed_image_requests[image->n_images];
+    // for (int i = 0; i < image->n_images; ++i) {
+    //     processed_image_requests[i] = MPI_REQUEST_NULL;
+    // }
+    MPI_Request processed_image_requests[n_slices * image->n_images];
+    for (int i = 0; i < n_slices * image->n_images; ++i) {
         processed_image_requests[i] = MPI_REQUEST_NULL;
     }
 
@@ -169,7 +186,8 @@ void do_master_work_with_splitting(animated_gif* image, int n_slices) {
         if (image_index != -1) {
             MPI_Irecv(image->p[image_index] + image->width[image_index] * slice_start,
                     image->width[image_index] * (slice_stop - slice_start),
-                    kMPIPixelDatatype, slave_rank, image_index, MPI_COMM_WORLD, &processed_image_requests[image_index]);
+                    kMPIPixelDatatype, slave_rank, image_index, MPI_COMM_WORLD,
+                    &processed_image_requests[n_slices * image_index + (n_slices*slice_start)/image->height[image_index]]);
             ++n_processed_slices;
         }
 
@@ -185,17 +203,22 @@ void do_master_work_with_splitting(animated_gif* image, int n_slices) {
             MPI_Request_free(&req);
         } else {
             /* send next image to slave that just finished its work */
-            MPI_Request req;
+            MPI_Request req, req2, req3;
             int image_index = n_sent_images;
             image_coordinates[0] = n_sent_images;
             image_coordinates[1] = slice_edges[slice_number];
             image_coordinates[2] = slice_edges[slice_number+1];
-            int send_start = slice_number > 0 ? image_coordinates[1] - 1 : 0;
-            int send_stop = image_coordinates[2] < image->height[image_index] ? image_coordinates[2] + 1 : image->height[image_index];
 
             MPI_Isend(&image_coordinates, 3, MPI_INT, slave_rank, schedulingCommTag, MPI_COMM_WORLD, &req);
             MPI_Request_free(&req);
+            if (slice_number > 0) {
+                MPI_Isend(&slave_previous_slice, 1, MPI_INT, slave_rank, slaveCommTag, MPI_COMM_WORLD, &req2);
+                MPI_Request_free(&req2);
+                MPI_Isend(&slave_rank, 1, MPI_INT, slave_previous_slice, slaveCommTag, MPI_COMM_WORLD, &req3);
+                MPI_Request_free(&req3);
+            }
             slice_number++;
+            slave_previous_slice = slave_rank;
             if (slice_number == n_slices)
             {
                 slice_number = 0;
@@ -206,8 +229,8 @@ void do_master_work_with_splitting(animated_gif* image, int n_slices) {
                 }
             }
             // TODO only send required pixels image->p[image_index] + offset in image would work?
-            MPI_Isend(image->p[image_index] + image->width[image_index] * send_start,
-                    image->width[image_index] * (send_stop - send_start),
+            MPI_Isend(image->p[image_index] + image->width[image_index] * slice_start,
+                    image->width[image_index] * (slice_stop - slice_start),
                     kMPIPixelDatatype, slave_rank, image_index, MPI_COMM_WORLD, &req);
             MPI_Request_free(&req); // safe because only time we write here is when slave sends result
 
@@ -217,7 +240,7 @@ void do_master_work_with_splitting(animated_gif* image, int n_slices) {
     }
 
     /* wait until all images have been correctly received */
-    for (int i = 0; i < image->n_images; ++i) {
+    for (int i = 0; i < n_slices*image->n_images; ++i) {
         if (processed_image_requests[i] != MPI_REQUEST_NULL) {
             MPI_Wait(processed_image_requests + i, MPI_STATUS_IGNORE);
         }

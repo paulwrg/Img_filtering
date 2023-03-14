@@ -26,7 +26,7 @@ void apply_all_filters(animated_gif* image);
 
 // TODO add support for horizontal splitting too
 void apply_sobel_filter_with_splitting(animated_gif * image, int image_index, int start, int stop);
-void apply_blur_filter_with_splitting(animated_gif * image, int size, int threshold, int image_index, int start, int stop);
+void apply_blur_filter_with_splitting(animated_gif * image, int size, int threshold, int image_index, int start, int stop, int* communicating_slaves);
 void apply_sobel_filter_with_splitting(animated_gif * image, int image_index, int start, int stop);
 
 #endif /* FILTERS_H */
