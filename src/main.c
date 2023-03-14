@@ -11,7 +11,6 @@
 #include <string.h>
 #include <sys/stat.h>
 #include "gif_lib.h"
-#include "filter_cuda.h"
 #include "utilmpi.h"
 #include <omp.h>
 
@@ -21,6 +20,10 @@
 #define filedebug 0
 #define USE_CUDA 0
 #define THREAD_NUM 16
+
+#ifdef USE_CUDA
+#include "filter_cuda.h"
+#endif
 
 MPI_Datatype kMPIPixelDatatype;
 
