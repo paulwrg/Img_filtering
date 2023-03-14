@@ -2,7 +2,7 @@
 
 make -j8
 
-SRC=images/original/Campusplan-Mobilitaetsbeschraenkte.gif
+SRC=images/original/TimelyHugeGnu.gif
 OUTPUT_DIR=images/processed
 DEST=$OUTPUT_DIR/`basename $SRC .gif`-sobel.gif
 echo "Running test on $SRC"

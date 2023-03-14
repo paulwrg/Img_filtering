@@ -19,7 +19,7 @@
 #define SOBELF_DEBUG 0
 #define WRITE_TO_FILE 1
 #define filedebug 0
-#define USE_CUDA 1
+#define USE_CUDA 0
 #define THREAD_NUM 16
 
 MPI_Datatype kMPIPixelDatatype;
@@ -550,7 +550,7 @@ int main(int argc, char *argv[]) {
     int ret_code;
 
 #if USE_CUDA
-    printf("***using cuda***\n");
+    // printf("***using cuda***\n");
     ret_code = sequential_main(argc, argv);
 #else
     MPI_Init(&argc, &argv);

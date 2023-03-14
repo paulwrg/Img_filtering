@@ -1,0 +1,75 @@
+Running test on images/original/051009.vince.gif -> images/processed/051009.vince-sobel.gif
+Number of MPI processes 1 and number of threads 1
+GIF loaded from file images/original/051009.vince.gif with 1 image(s) in 0.013811 s
+SOBEL done in 0.122347 s
+Export done in 0.169651 s in file images/processed/051009.vince-sobel.gif
+Running test on images/original/1.gif -> images/processed/1-sobel.gif
+Number of MPI processes 1 and number of threads 1
+GIF loaded from file images/original/1.gif with 10 image(s) in 0.020752 s
+SOBEL done in 0.182752 s
+Export done in 0.116065 s in file images/processed/1-sobel.gif
+Running test on images/original/200_s.gif -> images/processed/200_s-sobel.gif
+Number of MPI processes 1 and number of threads 1
+GIF loaded from file images/original/200_s.gif with 1 image(s) in 0.001403 s
+SOBEL done in 0.005148 s
+Export done in 0.002401 s in file images/processed/200_s-sobel.gif
+Running test on images/original/9815573.gif -> images/processed/9815573-sobel.gif
+Number of MPI processes 1 and number of threads 1
+GIF loaded from file images/original/9815573.gif with 10 image(s) in 0.014946 s
+SOBEL done in 0.086878 s
+Export done in 0.058201 s in file images/processed/9815573-sobel.gif
+Running test on images/original/australian-flag-large.gif -> images/processed/australian-flag-large-sobel.gif
+Number of MPI processes 1 and number of threads 1
+GIF loaded from file images/original/australian-flag-large.gif with 1 image(s) in 0.007855 s
+SOBEL done in 0.069296 s
+Export done in 0.016681 s in file images/processed/australian-flag-large-sobel.gif
+Running test on images/original/Campusplan-Hausnr.gif -> images/processed/Campusplan-Hausnr-sobel.gif
+Number of MPI processes 1 and number of threads 1
+GIF loaded from file images/original/Campusplan-Hausnr.gif with 1 image(s) in 0.338839 s
+SOBEL done in 6.552519 s
+Export done in 0.697880 s in file images/processed/Campusplan-Hausnr-sobel.gif
+Running test on images/original/Campusplan-Mobilitaetsbeschraenkte.gif -> images/processed/Campusplan-Mobilitaetsbeschraenkte-sobel.gif
+Number of MPI processes 1 and number of threads 1
+GIF loaded from file images/original/Campusplan-Mobilitaetsbeschraenkte.gif with 1 image(s) in 0.319068 s
+SOBEL done in 6.541902 s
+Export done in 1.946998 s in file images/processed/Campusplan-Mobilitaetsbeschraenkte-sobel.gif
+Running test on images/original/fire.gif -> images/processed/fire-sobel.gif
+Number of MPI processes 1 and number of threads 1
+GIF loaded from file images/original/fire.gif with 33 image(s) in 0.001240 s
+SOBEL done in 0.017093 s
+Export done in 0.002784 s in file images/processed/fire-sobel.gif
+Running test on images/original/frame_002.gif -> images/processed/frame_002-sobel.gif
+Number of MPI processes 1 and number of threads 1
+GIF loaded from file images/original/frame_002.gif with 1 image(s) in 0.002392 s
+SOBEL done in 0.008375 s
+Export done in 0.004091 s in file images/processed/frame_002-sobel.gif
+Running test on images/original/giphy-3.gif -> images/processed/giphy-3-sobel.gif
+Number of MPI processes 1 and number of threads 1
+GIF loaded from file images/original/giphy-3.gif with 5 image(s) in 0.093255 s
+SOBEL done in 0.718514 s
+Export done in 0.821329 s in file images/processed/giphy-3-sobel.gif
+Running test on images/original/Mandelbrot-large.gif -> images/processed/Mandelbrot-large-sobel.gif
+Number of MPI processes 1 and number of threads 1
+GIF loaded from file images/original/Mandelbrot-large.gif with 20 image(s) in 0.175872 s
+SOBEL done in 1.556539 s
+Export done in 1.940609 s in file images/processed/Mandelbrot-large-sobel.gif
+Running test on images/original/porsche.gif -> images/processed/porsche-sobel.gif
+Number of MPI processes 1 and number of threads 1
+GIF loaded from file images/original/porsche.gif with 1 image(s) in 0.001020 s
+SOBEL done in 0.003962 s
+Export done in 0.002072 s in file images/processed/porsche-sobel.gif
+Running test on images/original/Produits_sous_linux.gif -> images/processed/Produits_sous_linux-sobel.gif
+Number of MPI processes 1 and number of threads 1
+GIF loaded from file images/original/Produits_sous_linux.gif with 1 image(s) in 0.016083 s
+SOBEL done in 0.063367 s
+Export done in 0.010028 s in file images/processed/Produits_sous_linux-sobel.gif
+Running test on images/original/TimelyHugeGnu.gif -> images/processed/TimelyHugeGnu-sobel.gif
+Number of MPI processes 1 and number of threads 1
+GIF loaded from file images/original/TimelyHugeGnu.gif with 19 image(s) in 0.051963 s
+SOBEL done in 0.198979 s
+Export done in 0.345557 s in file images/processed/TimelyHugeGnu-sobel.gif
+Running test on images/original/tumblr_myxlbtwVEb1qzt4vjo1_r14_500_large.gif -> images/processed/tumblr_myxlbtwVEb1qzt4vjo1_r14_500_large-sobel.gif
+Number of MPI processes 1 and number of threads 1
+GIF loaded from file images/original/tumblr_myxlbtwVEb1qzt4vjo1_r14_500_large.gif with 10 image(s) in 0.020095 s
+SOBEL done in 0.189167 s
+Export done in 0.368858 s in file images/processed/tumblr_myxlbtwVEb1qzt4vjo1_r14_500_large-sobel.gif
