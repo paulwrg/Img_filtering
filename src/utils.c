@@ -31,14 +31,15 @@ int* split_segment(int width, int n_slices)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     printf("attempt from rank %d\n", rank);
     slice_edges = (int*)malloc((n_slices+1) * sizeof(int));
-
-    for (i = 0; i < width % n_slices; i++)
+    slice_edges[0] = 0;
+    
+    for (i = 1; i <= width % n_slices; i++)
     {
-        slice_edges[i] = (i + 1) * (width/n_slices + 1);
+        slice_edges[i] = i * (width/n_slices + 1);
     }
-    for (i = width % n_slices; i < n_slices; i++)
+    for (i = (width % n_slices) + 1; i <= n_slices; i++)
     {
-        slice_edges[i] = (i + 1) * (width/n_slices) + width % n_slices;
+        slice_edges[i] = i * (width/n_slices) + (width % n_slices);
     }
     printf("success from rank %d\n", rank);
     return slice_edges;

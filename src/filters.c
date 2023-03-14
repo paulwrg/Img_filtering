@@ -270,10 +270,18 @@ void apply_gray_filter_with_splitting(animated_gif * image, int image_index, int
     int i, j ;
     pixel ** p ;
 
-    p = image->p ;
+    int mpi_rank;
+    int mpi_world_size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &mpi_world_size);
 
-    #pragma omp parallel for private(j) num_threads(THREAD_NUM)
-    for (j = image->width[image_index] * start; j < image->width[image_index] * stop; j++) {
+    printf("G1 from rank %d\n", mpi_rank);
+
+    p = image->p ;
+    printf("G2 from rank %d\n", mpi_rank);
+
+    // #pragma omp parallel for private(j) num_threads(THREAD_NUM)
+    for (j = (image->width[image_index]) * start; j < (image->width[image_index]) * stop; j++) {
         int moy;
         moy = (p[image_index][j].r + p[image_index][j].g + p[image_index][j].b) / 3;
         if (moy < 0) {
@@ -292,7 +300,7 @@ void apply_blur_filter_with_splitting(animated_gif * image, int size, int thresh
 {
     int i, j, k ;
     int width, height ;
-    int endloop = 0 ;
+    int endloop = 1 ;
     int n_iter = 0 ;
     int begin, end ;
 
@@ -309,7 +317,7 @@ void apply_blur_filter_with_splitting(animated_gif * image, int size, int thresh
     p = image->p ;
 
     /* Process all images */
-    n_iter = 0;
+    // n_iter = 0;
     width = image->width[image_index];
     height = image->height[image_index];
 
@@ -317,9 +325,9 @@ void apply_blur_filter_with_splitting(animated_gif * image, int size, int thresh
     new = (pixel*)malloc(width * height * sizeof(pixel));
 
     /* Perform at least one blur iteration */
-    do {
-        end = 1;
-        n_iter++;
+    // do {
+        // endloop = 1;
+        // n_iter++;
 
         #pragma omp parallel private(begin) private(end) num_threads(THREAD_NUM)
         {
@@ -451,14 +459,14 @@ void apply_blur_filter_with_splitting(animated_gif * image, int size, int thresh
                 }
             }
         }
-    } while (threshold > 0 && !endloop);
+    // } while (threshold > 0 && !endloop);
 
 #if SOBELF_DEBUG
     printf( "BLUR: number of iterations for image %d\n", n_iter ) ;
 #endif
 
     free(new);
-
+    return endloop;
 }
 
 void apply_sobel_filter_with_splitting(animated_gif * image, int image_index, int start, int stop)
