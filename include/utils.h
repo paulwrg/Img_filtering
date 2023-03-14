@@ -1,9 +1,6 @@
 #include <stdint.h>
 #include "gif_lib.h"
 
-#define CONV(l, c, nb_c) \
-    ((l)*(nb_c)+(c))
-
 /* Represent one pixel from the image */
 typedef struct pixel
 {
