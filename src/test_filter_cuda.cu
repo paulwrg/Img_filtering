@@ -8,7 +8,7 @@
 #include "cuda.h"
 #include "filter_cuda.h"
 
-#define debug 1
+#define debug 0
 
 int print_time = 0;
 int blur_size = 5; 
@@ -441,6 +441,9 @@ void apply_all_filters_gpu(animated_gif *image)
     sobel<<<dimGrid, dimBlock>>>(device_image, device_new, height, width);
 
     cudaMemcpy(image->p[im_num], device_new, size * sizeof(pixel), cudaMemcpyDeviceToHost);
+#if debug
+    printf("445\n");
+#endif 
   }
 
   cudaFree(device_image);
